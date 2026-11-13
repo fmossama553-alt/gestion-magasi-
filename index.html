@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gestion Magasin</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#00539F">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<style>
+:root{--bg:#0d0d0d;--hdr:#141414;--green:#2f9e2f;--gtxt:#0f3a0f;--menu:#f2f2f2;--b1:#7a7d82;--b2:#54575c;--blue:#2ab0e8;--tbl:#f6f9f6;--tt:#2b2b2b;--th:#dfe9df;--grid:#c3d0c3;--err:#c62828;--cur:#fff3b0;--ok:#cfe9cf;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--menu:#222;--tbl:#1d261d;--tt:#e9f0e9;--th:#2d3b2d;--grid:#3c4d3c;--cur:#5a5320;--ok:#27502a}}
+:root[data-theme="dark"]{--menu:#222;--tbl:#1d261d;--tt:#e9f0e9;--th:#2d3b2d;--grid:#3c4d3c;--cur:#5a5320;--ok:#27502a}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;height:100%;background:var(--bg);color:#fff;font-family:Roboto,"Segoe UI",Arial,sans-serif}
+#app{display:flex;flex-direction:column;height:100%;max-width:640px;margin:0 auto}
+header{background:var(--hdr);padding:10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+header .sp{width:70px}
+header h1{flex:1;margin:0;text-align:center;font-size:15px;line-height:1.3;font-weight:700}
+.badge{width:70px;background:#333;color:#fff;border:0;border-radius:6px;padding:8px 4px;font-size:14px;overflow:hidden;text-overflow:ellipsis}
+main{flex:1;overflow:auto;background:var(--green);color:var(--gtxt)}
+main.menu{background:var(--menu);color:var(--tt)}
+.mb{display:block;width:calc(100% - 20px);margin:8px 10px;padding:15px 8px;border:0;border-radius:6px;background:linear-gradient(var(--b1),var(--b2));color:#fff;font-size:18px;text-align:center}
+.ban{padding:8px 10px;text-align:center;font-weight:700;font-size:18px;line-height:1.25}
+.ban.err{background:var(--err);color:#fff}
+.ban.warn{background:#e8a000;color:#222}
+.ban.toast{background:var(--green);color:#fff;margin:10px;border-radius:6px}
+.ban.sm{font-size:14px;padding:4px}
+.inp{padding:6px 12px}
+input,select,textarea{font-family:inherit}
+.inp input,.inp textarea,.form input,.form select{width:100%;font-size:20px;padding:9px;border:2px solid #e3a23c;border-radius:4px;background:#fff;color:#111}
+.inp textarea{font-size:13px;height:30vh;border-color:#999}
+.form{padding:4px 12px}
+.form label{display:block;margin:10px 0 3px;font-weight:700}
+.form label.ck{display:flex;align-items:center;gap:10px}
+.form label.ck input{width:24px;height:24px}
+.row{display:flex;justify-content:center;gap:10px;padding:6px 12px 10px;flex-wrap:wrap}
+.sb{background:var(--blue);color:#fff;border:0;border-radius:6px;padding:14px 20px;font-size:19px;font-weight:700}
+.sb.sm{padding:10px 13px;font-size:15px}
+.sb.on{background:#0f5d9a}
+.sc{overflow:auto;max-height:52vh}
+table{width:100%;border-collapse:collapse;background:var(--tbl);color:var(--tt);font-size:17px;text-align:center}
+table.xl{font-size:13px;text-align:left;white-space:nowrap}
+table.xl th,table.xl td{border:1px solid var(--grid);padding:4px 6px}
+th{font-weight:700;padding:5px 3px;background:var(--th);position:sticky;top:0}
+td{padding:4px 3px}
+tr.cur td{background:var(--cur);font-weight:700}
+tr.ok td{background:var(--ok)}
+tr.bad td{color:var(--err);font-weight:700}
+tr.tap{cursor:pointer}
+.tot{padding:8px;text-align:center;font-weight:700}
+.kp{display:flex;gap:8px;padding:10px 10px 2px}
+.kp div{flex:1;background:var(--tbl);color:var(--tt);border-radius:6px;text-align:center;padding:8px 2px;font-size:12px}
+.kp b{display:block;font-size:22px}
+footer{background:var(--hdr);display:flex;justify-content:space-between;align-items:center;padding:6px 12px;font-size:12px;color:#ddd;gap:8px}
+footer button{background:#e8e8e8;border:0;border-radius:6px;padding:6px 14px;font-size:18px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const $=s=>document.querySelector(s);
+const E=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let DB={user:"",shop:"Mon Magasin",dep:"Principal",deps:["Principal"],seuil:5,sound:true,arts:{},stock:{},log:[],orders:[],bons:[],seq:{PK:1,BE:1,BS:1,BR:1}};
+try{const r=localStorage.getItem("gm_v2")||localStorage.getItem("gm_v1");if(r)DB=Object.assign(DB,JSON.parse(r))}catch(e){}
+(function(){const ns={};for(const k in DB.stock){ns[k.split("|").length===2?"Principal|"+k:k]=DB.stock[k]}DB.stock=ns;
+ DB.log=DB.log.map(r=>r.length===6?[r[0],r[1],r[2],"Principal",r[3],r[4],r[5],""]:r);
+ if(typeof DB.seq==="number")DB.seq={PK:DB.seq,BE:1,BS:1,BR:1};DB.orders.forEach(o=>o.dep=o.dep||"Principal")})();
+const save=()=>{try{localStorage.setItem("gm_v2",JSON.stringify(DB))}catch(e){}};
+const beep=ok=>{if(!DB.sound)return;try{const a=new(window.AudioContext||window.webkitAudioContext)(),o=a.createOscillator();o.frequency.value=ok?880:220;o.connect(a.destination);o.start();setTimeout(()=>o.stop(),ok?80:250)}catch(e){}
+ if(!ok){try{navigator.vibrate&&navigator.vibrate(200)}catch(e){}}};
+const app=$("#app"),K=(e,a,d)=>(d||DB.dep)+"|"+e+"|"+a,now=()=>new Date().toISOString().slice(0,16).replace("T"," ");
+let KB=!/Zebra|TC[0-9]{2}|EC[0-9]{2}|MC[0-9]{2}/i.test(navigator.userAgent);
+let S={view:DB.user?"menu":"login"};
+const T={in:"Entrée Stock",out:"Sortie Stock",ret:"Retour",inv:"Inventaire Général",cyc:"Cycle Count",pkn:"Nouveau Picking",pick:"Commencer le Picking"};
+const MENU=[["Inventaire Général","inv"],["Cycle Count","cyc"],["Entrée Stock","in"],["Sortie Stock","out"],["Retour","ret"],["Nouveau Picking","pkn"],["Afficher les commandes de Picking","list"],["Commencer le Picking","pick"],["Tableaux (Excel)","tables"],["Fiches Articles","arts"],["Paramètres","set"]];
+const desig=a=>(DB.arts[a]&&DB.arts[a].d)||"";
+function log(t,e,a,q,bon,dep){DB.log.push([now(),DB.user,t,dep||DB.dep,e,a,q,bon||""])}
+function tr(c,cls,extra){return `<tr class="${cls||""}" ${extra||""}>${c.map(x=>`<td>${E(x)}</td>`).join("")}</tr>`}
+function tbl(h,rows){return `<table><tr>${h.map(x=>`<th>${x}</th>`).join("")}</tr>${rows.join("")}</table>`}
+function totals(){const t={};for(const k in DB.stock){const a=k.split("|")[2];t[a]=(t[a]||0)+DB.stock[k]}return t}
+function statusOf(a,t){const q=t[a]||0,A=DB.arts[a],m=(A&&A.min!=null)?A.min:DB.seuil;return q<=0?"Rupture":q<=m?"Stock bas":"OK"}
+function shell(sub,main,cls){
+ app.innerHTML=`<header><div class="sp"></div><h1>${E(DB.shop)}<br>${sub}</h1><button class="badge" id="bd">${E(DB.user||"—")}</button></header>
+ <main class="${cls||""}">${main}</main>
+ <footer><span>Dépôt : ${E(DB.dep)}</span><button id="kb" aria-label="Clavier">⌨</button></footer>`;
+ $("#bd").onclick=()=>{DB.user="";save();S={view:"login"};render()};
+ $("#kb").onclick=()=>{KB=!KB;render()};
+ const i=$("#in");if(i)setTimeout(()=>i.focus(),50);
+}
+function scanUI(msg,err,btns){
+ return `${err?`<div class="ban err">${err}</div>`:""}${S.info?`<div class="ban warn">${S.info}</div>`:""}${S.bon?`<div class="ban sm">Bon ${S.bon}</div>`:""}<div class="ban">${msg}</div>
+ <div class="inp"><input id="in" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="${KB?(S.step==="qty"?"numeric":"text"):"none"}"></div>
+ <div class="row">${btns}</div>`;
+}
+function xt(h,R,cls){return `<table class="xl"><tr>${h.map(x=>`<th>${x}</th>`).join("")}</tr>${R.map((r,i)=>`<tr class="${cls?cls(r):""}" data-i="${i}">${r.map(x=>`<td>${E(x)}</td>`).join("")}</tr>`).join("")}</table>`}
+function tabData(t){
+ const tot=totals();
+ if(t==="stock")return{h:["Dépôt","Empl.","Article","Désignation","Qté","Unité","Valeur","Statut"],
+  r:Object.keys(DB.stock).filter(k=>DB.stock[k]>0).sort().map(k=>{const[d,e,a]=k.split("|"),A=DB.arts[a]||{},q=DB.stock[k];return[d,e,a,A.d||"",q,A.u||"",+(q*(A.p||0)).toFixed(3),statusOf(a,tot)]}),
+  cls:r=>r[7]==="Rupture"?"bad":r[7]==="Stock bas"?"cur":"",tot:R=>"valeur totale : "+R.reduce((s,r)=>s+r[6],0).toFixed(3)};
+ if(t==="mvt")return{h:["Date","Opérateur","Type","Dépôt","Empl.","Article","Qté","Bon"],r:DB.log.slice().reverse().map(r=>r.slice())};
+ if(t==="bons")return{h:["N°","Date","Type","Dépôt","Lignes","Opérateur"],r:DB.bons.slice().reverse().map(b=>[b.n,b.date,b.type,b.dep,b.lines.length,b.user])};
+ return{h:["Code","Désignation","Unité","Fournisseur","Prix","Stock min","Stock total","Statut"],
+  r:Object.keys(DB.arts).sort().map(a=>{const A=DB.arts[a];return[a,A.d,A.u,A.f,A.p,A.min==null?"":A.min,tot[a]||0,statusOf(a,tot)]}),
+  cls:r=>r[7]==="Rupture"?"bad":r[7]==="Stock bas"?"cur":""};
+}
+async function clip(txt){try{await navigator.clipboard.writeText(txt)}catch(e){const t=document.createElement("textarea");t.value=txt;document.body.appendChild(t);t.select();try{document.execCommand("copy")}catch(x){}t.remove()}}
+function render(){
+ const v=S.view;
+ if(v==="login"){shell("Connexion",scanUI("Scanner votre badge","",`<button class="sb" id="ok">Scanner</button>`));
+  const go=()=>{const x=$("#in").value.trim().toUpperCase();if(!x)return;DB.user=x;save();S={view:"menu"};beep(1);render()};
+  $("#ok").onclick=go;$("#in").onkeydown=e=>{if(e.key==="Enter")go()};return}
+ if(v==="menu"){const t=totals(),all=new Set([...Object.keys(DB.arts),...Object.keys(t)]);let al=0;all.forEach(a=>{if(statusOf(a,t)!=="OK")al++});
+  const lines=Object.keys(DB.stock).filter(k=>DB.stock[k]>0).length;
+  shell("Menu",(S.toast?`<div class="ban toast">${S.toast}</div>`:"")+`<div class="kp"><div><b>${all.size}</b>articles</div><div><b>${lines}</b>lignes en stock</div><div><b>${al}</b>alertes</div></div>`+MENU.map(m=>`<button class="mb" data-m="${m[1]}">${m[0]}</button>`).join(""),"menu");S.toast="";
+  document.querySelectorAll(".mb").forEach(b=>b.onclick=()=>open(b.dataset.m));return}
+ if(v==="flow")return flow();
+ if(v==="invres")return invres();
+ if(v==="list"){const rows=DB.orders.slice().reverse().map(o=>tr([o.id,o.lines.length,o.status],"tap",`data-id="${o.id}"`));
+  shell("Commandes de Picking",`<div class="ban">${DB.orders.length?"Touchez une commande":"Aucune commande"}</div>`+(rows.length?tbl(["N°","Lignes","État"],rows):"")+`<div class="row"><button class="sb" id="bk">Menu</button></div>`);
+  $("#bk").onclick=()=>{S={view:"menu"};render()};
+  document.querySelectorAll("tr.tap").forEach(r=>r.onclick=()=>{S={view:"detail",id:r.dataset.id};render()});return}
+ if(v==="detail"){const o=DB.orders.find(x=>x.id===S.id);
+  shell(o.id,`<div class="ban">${o.status}</div>`+tbl(["Emplacement","Article","Demandé","Pris"],o.lines.map(l=>tr([l.emp,l.art,l.dem,l.pris],l.pris>=l.dem?"ok":"")))+`<div class="row"><button class="sb" id="bk">Retour</button></div>`);
+  $("#bk").onclick=()=>{S={view:"list"};render()};return}
+ if(v==="bon"){const b=DB.bons.find(x=>x.n===S.id);
+  shell("Bon "+b.n,`<div class="ban">${b.type} – ${E(b.dep)} – ${b.date}</div>`+tbl(["Emplacement","Article","Désignation","Qté"],b.lines.map(l=>tr([l[0],l[1],desig(l[1]),l[2]])))+`<div class="row"><button class="sb" id="bk">Retour</button></div>`);
+  $("#bk").onclick=()=>{S={view:"tables",tab:"bons",q:""};render()};return}
+ if(v==="choose"){const p=DB.orders.filter(o=>o.status!=="Terminé");
+  shell("Commencer le Picking",`<div class="ban">Choisir une commande</div>`+p.map(o=>`<button class="mb" data-id="${o.id}">${o.id} (${o.lines.length} lignes)</button>`).join("")+`<div class="row"><button class="sb" id="bk">Menu</button></div>`,"menu");
+  $("#bk").onclick=()=>{S={view:"menu"};render()};
+  document.querySelectorAll(".mb").forEach(b=>b.onclick=()=>startPick(DB.orders.find(o=>o.id===b.dataset.id)));return}
+ if(v==="tables"){S.tab=S.tab||"stock";S.q=S.q||"";
+  const tabs=[["stock","Stock"],["mvt","Mouvements"],["bons","Bons"],["arts","Articles"]];
+  shell("Tableaux",`<div class="row" style="padding-bottom:0">${tabs.map(t=>`<button class="sb sm ${S.tab===t[0]?"on":""}" data-t="${t[0]}">${t[1]}</button>`).join("")}</div>
+  <div class="inp"><input id="in" autocomplete="off" autocapitalize="characters" inputmode="${KB?"text":"none"}" placeholder="Rechercher ou scanner" value="${E(S.q)}"></div><div id="tb"></div>
+  <div class="row"><button class="sb sm" id="cp">Copier pour Excel</button><button class="sb sm" id="bk">Menu</button></div>`);
+  let R=[];const D=tabData(S.tab);
+  const draw=()=>{S.q=$("#in").value;const f=S.q.trim().toUpperCase();R=D.r.filter(r=>!f||r.join(" ").toUpperCase().includes(f));
+   $("#tb").innerHTML=`<div class="sc">${xt(D.h,R,D.cls)}</div><div class="tot">${R.length} ligne(s)${D.tot?" – "+D.tot(R):""}</div>`;
+   if(S.tab==="bons")document.querySelectorAll("#tb tr[data-i]").forEach(t=>{t.classList.add("tap");t.onclick=()=>{S={view:"bon",id:R[t.dataset.i][0]};render()}})};
+  $("#in").oninput=draw;draw();
+  document.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{S.tab=b.dataset.t;S.q="";render()});
+  $("#cp").onclick=async e=>{await clip([D.h,...R].map(r=>r.join("\t")).join("\n"));beep(1);e.target.textContent="Copié ✓";setTimeout(()=>{e.target.textContent="Copier pour Excel"},1800)};
+  $("#bk").onclick=()=>{S={view:"menu"};render()};return}
+ if(v==="arts"){const c=S.ec||"",A=DB.arts[c]||{};
+  shell("Fiches Articles",`${S.msg?`<div class="ban toast">${S.msg}</div>`:""}<div class="form">
+  <label>Code article (scanner ou saisir)</label><input id="in" value="${E(c)}" autocapitalize="characters" autocomplete="off" inputmode="${KB?"text":"none"}">
+  <label>Désignation</label><input id="f_d" value="${E(A.d||"")}">
+  <label>Unité</label><input id="f_u" value="${E(A.u||"pcs")}">
+  <label>Fournisseur</label><input id="f_f" value="${E(A.f||"")}">
+  <label>Prix d’achat</label><input id="f_p" type="number" step="any" inputmode="decimal" value="${A.p||""}">
+  <label>Stock minimum (alerte)</label><input id="f_m" type="number" inputmode="numeric" value="${A.min==null?"":A.min}"></div>
+  <div class="row"><button class="sb" id="sv">Enregistrer</button><button class="sb sm" id="bk">Menu</button></div>
+  <div class="ban">Importer depuis Excel</div><div class="inp"><textarea id="imp" placeholder="Collez ici : code ; désignation ; unité ; fournisseur ; prix ; stock min (une ligne par article)"></textarea></div>
+  <div class="row"><button class="sb sm" id="im">Importer</button></div>`);
+  S.msg="";
+  $("#in").onkeydown=e=>{if(e.key==="Enter"){S.ec=$("#in").value.trim().toUpperCase();render();setTimeout(()=>$("#f_d").focus(),60)}};
+  $("#sv").onclick=()=>{const code=$("#in").value.trim().toUpperCase();if(!code)return;const m=$("#f_m").value;
+   DB.arts[code]={d:$("#f_d").value.trim(),u:$("#f_u").value.trim()||"pcs",f:$("#f_f").value.trim(),p:parseFloat($("#f_p").value)||0,min:m===""?null:parseInt(m,10)};
+   save();S={view:"arts",ec:"",msg:"Article "+E(code)+" enregistré"};beep(1);render()};
+  $("#im").onclick=()=>{let n=0;$("#imp").value.split(/\r?\n/).forEach(l=>{if(!l.trim())return;const s=l.includes("\t")?"\t":l.includes(";")?";":",";const p=l.split(s).map(x=>x.trim());const code=(p[0]||"").toUpperCase();if(!code||/^(code|article)$/i.test(code))return;
+   DB.arts[code]={d:p[1]||"",u:p[2]||"pcs",f:p[3]||"",p:parseFloat((p[4]||"").replace(",","."))||0,min:p[5]?parseInt(p[5],10):null};n++});
+   save();S={view:"arts",ec:"",msg:n+" article(s) importé(s)"};render()};
+  $("#bk").onclick=()=>{S={view:"menu"};render()};return}
+ if(v==="set"){
+  shell("Paramètres",`${S.msg?`<div class="ban toast">${S.msg}</div>`:""}<div class="form">
+  <label>Nom du magasin</label><input id="f_shop" value="${E(DB.shop)}">
+  <label>Dépôt actif</label><select id="f_dep">${DB.deps.map(d=>`<option ${d===DB.dep?"selected":""}>${E(d)}</option>`).join("")}</select>
+  <label>Ajouter un dépôt</label><input id="f_nd" placeholder="Nom du nouveau dépôt">
+  <label>Seuil de stock bas (par défaut)</label><input id="f_s" type="number" inputmode="numeric" value="${DB.seuil}">
+  <label class="ck"><input type="checkbox" id="f_snd" ${DB.sound?"checked":""}>Son et vibration au scan</label></div>
+  <div class="row"><button class="sb" id="sv">Enregistrer</button></div>
+  <div class="ban">Sauvegarde des données</div><div class="inp"><textarea id="ta"></textarea></div>
+  <div class="row"><button class="sb sm" id="bc">Copier</button><button class="sb sm" id="br">Restaurer</button><button class="sb sm" id="rs">Tout effacer</button><button class="sb sm" id="bk">Menu</button></div>`);
+  S.msg="";const ta=$("#ta");ta.value=JSON.stringify(DB);
+  $("#sv").onclick=()=>{DB.shop=$("#f_shop").value.trim()||"Mon Magasin";const nd=$("#f_nd").value.trim();let d=$("#f_dep").value;
+   if(nd){if(!DB.deps.includes(nd))DB.deps.push(nd);d=nd}DB.dep=d;DB.seuil=parseInt($("#f_s").value,10)||0;DB.sound=$("#f_snd").checked;save();S={view:"set",msg:"Paramètres enregistrés"};render()};
+  $("#bc").onclick=async()=>{await clip(ta.value);beep(1)};
+  $("#br").onclick=()=>{try{const o=JSON.parse(ta.value);if(!o||typeof o!=="object"||!o.stock)throw 0;DB=Object.assign(DB,o);save();S={view:"set",msg:"Données restaurées"};render()}catch(e){S={view:"set",msg:"Sauvegarde invalide"};render()}};
+  let c=0;$("#rs").onclick=e=>{if(!c){c=1;e.target.textContent="Confirmer ?";setTimeout(()=>{c=0;e.target.textContent="Tout effacer"},4000);return}
+   const u=DB.user;DB={user:u,shop:"Mon Magasin",dep:"Principal",deps:["Principal"],seuil:5,sound:true,arts:{},stock:{},log:[],orders:[],bons:[],seq:{PK:1,BE:1,BS:1,BR:1}};save();S={view:"menu",toast:"Données effacées"};render()};
+  $("#bk").onclick=()=>{S={view:"menu"};render()};return}
+}
+function open(m){
+ if(["list","tables","arts","set"].includes(m)){S={view:m};return render()}
+ if(m==="pick"){const p=DB.orders.filter(o=>o.status!=="Terminé"&&o.dep===DB.dep);
+  if(!p.length){S={view:"menu",toast:"Aucune commande en attente"};return render()}
+  if(p.length===1)return startPick(p[0]);S={view:"choose"};return render()}
+ S={view:"flow",mode:m,step:"emp",lines:[],err:"",info:"",bon:""};render()
+}
+function startPick(o){o.lines.forEach(l=>l.pris=0);S={view:"flow",mode:"pick",order:o,i:0,step:"emp",lines:[],err:"",info:""};render()}
+function prompt_(){
+ const m=S.mode,st=S.step;
+ if(m==="pick"){const L=S.order.lines[S.i],d=desig(L.art);
+  return st==="emp"?`Scanner l’emplacement<br>${E(L.emp)}`:st==="art"?`Scanner l’article<br>${E(L.art)} ${E(d)}`:`Quantité à prélever (demandé : ${L.dem})`}
+ return st==="emp"?"Scanner l’emplacement":st==="art"?`Emplacement ${E(S.emp)}<br>Scanner l’article`:`${E(S.art)} ${E(desig(S.art))}<br>Saisir la quantité`;
+}
+function flow(){
+ const m=S.mode;let h,rows;
+ if(m==="pick"){h=["Emplacement","Article","Demandé","Pris"];rows=S.order.lines.map((l,i)=>tr([l.emp,l.art,l.dem,l.pris],i<S.i?"ok":i===S.i?"cur":""))}
+ else{h=["Emplacement","Article",m==="pkn"?"Demandé":m==="inv"||m==="cyc"?"Compté":"Qté"];rows=S.lines.map(l=>tr([l.emp,l.art,l.q]))}
+ const btns=`<button class="sb" id="sc">Scanner</button><button class="sb" id="fin">Terminer</button><button class="sb sm" id="cam">📷</button>`+(m!=="pick"&&S.step!=="emp"?`<button class="sb sm" id="ch">Emplacement</button>`:"");
+ shell(T[m],scanUI(prompt_(),S.err,btns)+(rows.length?tbl(h,rows):""));
+ $("#sc").onclick=go;$("#fin").onclick=fin;$("#cam").onclick=cam;$("#in").onkeydown=e=>{if(e.key==="Enter")go()};
+ const c=$("#ch");if(c)c.onclick=()=>{S.step="emp";S.err="";render()};
+}
+async function cam(){
+ if(!("BarcodeDetector" in window)||!navigator.mediaDevices)return fail("Caméra non disponible ici. Utilisez le scanner Zebra ou ouvrez la page dans Chrome.");
+ let stream;try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}})}catch(e){return fail("Accès à la caméra refusé")}
+ const ov=document.createElement("div");ov.style.cssText="position:fixed;inset:0;background:#000;z-index:9;display:flex;flex-direction:column;align-items:center;justify-content:center";
+ ov.innerHTML='<video playsinline autoplay muted style="width:100%;max-height:75%"></video><button class="sb" style="margin:16px">Fermer</button>';
+ document.body.appendChild(ov);const vd=ov.querySelector("video");vd.srcObject=stream;
+ const det=new BarcodeDetector();let on=true;const stop=()=>{on=false;stream.getTracks().forEach(t=>t.stop());ov.remove()};
+ ov.querySelector("button").onclick=stop;
+ (async function loop(){while(on){try{const r=await det.detect(vd);if(r.length){const x=r[0].rawValue;stop();$("#in").value=x;go();return}}catch(e){}await new Promise(r=>setTimeout(r,250))}})();
+}
+function fail(t){S.err=t;beep(0);flow()}
+function bonLine(e,a,q){const p={in:"BE",out:"BS",ret:"BR"}[S.mode];
+ if(!S.bon){S.bon=p+String(DB.seq[p]++).padStart(4,"0");DB.bons.push({n:S.bon,type:S.mode==="in"?"Entrée":S.mode==="out"?"Sortie":"Retour",date:now(),user:DB.user,dep:DB.dep,lines:[]})}
+ DB.bons.find(b=>b.n===S.bon).lines.push([e,a,q])}
+function go(){
+ const el=$("#in");let v=el.value.trim().toUpperCase();el.value="";const m=S.mode,st=S.step;S.err="";S.info="";
+ if(!v&&!(m==="pick"&&st==="qty"))return el.focus();
+ if(m==="pick"){const L=S.order.lines[S.i];
+  if(st==="emp"){if(v!==L.emp)return fail("Mauvais emplacement : "+E(v));S.step="art";beep(1);return flow()}
+  if(st==="art"){if(v!==L.art)return fail("Mauvais article : "+E(v));S.step="qty";beep(1);return flow()}
+  const n=v===""?L.dem:parseInt(v,10);if(isNaN(n)||n<0||n>L.dem)return fail("Quantité invalide (0 à "+L.dem+")");
+  L.pris=n;S.i++;beep(1);if(S.i>=S.order.lines.length)return endPick();S.step="emp";return flow()}
+ if(st==="emp"){S.emp=v;S.step="art";beep(1);return flow()}
+ if(st==="art"){S.art=v;if(m==="out"&&(DB.stock[K(S.emp,v)]||0)<=0)return fail("Pas de stock pour "+E(v)+" à cet emplacement");
+  if((m==="in"||m==="ret"||m==="pkn")&&!DB.arts[v]){DB.arts[v]={d:"",u:"pcs",f:"",p:0,min:null};save()}
+  S.step="qty";beep(1);return flow()}
+ const n=parseInt(v,10),k=K(S.emp,S.art);
+ if(isNaN(n)||n<0||(n===0&&m!=="inv"&&m!=="cyc"))return fail("Quantité invalide");
+ if(m==="out"&&n>(DB.stock[k]||0))return fail("Stock insuffisant (disponible : "+(DB.stock[k]||0)+")");
+ if(m==="in"||m==="ret"){bonLine(S.emp,S.art,n);DB.stock[k]=(DB.stock[k]||0)+n;log(m==="in"?"ENTREE":"RETOUR",S.emp,S.art,n,S.bon)}
+ if(m==="out"){bonLine(S.emp,S.art,n);DB.stock[k]-=n;log("SORTIE",S.emp,S.art,n,S.bon);
+  const t=totals(),s=statusOf(S.art,t);if(s!=="OK")S.info=(s==="Rupture"?"Rupture : ":"Stock bas : ")+E(S.art)+" (reste "+(t[S.art]||0)+")"}
+ const ex=S.lines.find(l=>l.emp===S.emp&&l.art===S.art);
+ if(ex&&(m==="inv"||m==="cyc"))ex.q=n;else S.lines.push({emp:S.emp,art:S.art,q:n});
+ save();S.step="art";beep(1);flow();
+}
+function fin(){
+ const m=S.mode;
+ if(m==="pkn"){if(!S.lines.length){S={view:"menu"};return render()}
+  const id="PK"+String(DB.seq.PK++).padStart(4,"0");DB.orders.push({id,status:"En attente",user:DB.user,dep:DB.dep,lines:S.lines.map(l=>({emp:l.emp,art:l.art,dem:l.q,pris:0}))});save();
+  S={view:"menu",toast:"Commande "+id+" créée"};return render()}
+ if(m==="inv"||m==="cyc"){if(!S.lines.length){S={view:"menu"};return render()}S.view="invres";return render()}
+ if(m==="pick"){S={view:"menu",toast:"Picking interrompu"};return render()}
+ S={view:"menu",toast:S.bon?"Bon "+S.bon+" enregistré ("+S.lines.length+" ligne(s))":"Aucune ligne enregistrée"};render()
+}
+function endPick(){
+ const o=S.order;o.lines.forEach(l=>{const k=K(l.emp,l.art,o.dep);DB.stock[k]=Math.max(0,(DB.stock[k]||0)-l.pris);log("PICKING",l.emp,l.art,l.pris,o.id,o.dep)});
+ o.status="Terminé";save();S={view:"menu",toast:"Picking "+o.id+" terminé"};render()
+}
+function invRows(){
+ const touched=new Set(S.lines.map(l=>l.emp)),cnt={};S.lines.forEach(l=>cnt[K(l.emp,l.art)]=l.q);
+ const ks=new Set(Object.keys(cnt));for(const k in DB.stock){const[d,e]=k.split("|");if(d===DB.dep&&(S.mode==="inv"||touched.has(e)))ks.add(k)}
+ return[...ks].sort().map(k=>{const[,e,a]=k.split("|");const t=DB.stock[k]||0,c=cnt[k]??0;return{k,e,a,t,c,x:c-t}});
+}
+function invres(){
+ const R=invRows(),bad=R.filter(r=>r.x!==0);
+ shell("Résultat inventaire",`<div class="ban">${bad.length?bad.length+" écart(s) trouvé(s)":"Aucun écart"}</div>`+tbl(["Empl.","Article","Théo.","Compté","Écart"],R.map(r=>tr([r.e,r.a,r.t,r.c,(r.x>0?"+":"")+r.x],r.x?"bad":"ok")))+
+  `<div class="row">${bad.length?`<button class="sb" id="ap">Valider les écarts</button>`:""}<button class="sb" id="bk">Menu</button></div>`);
+ $("#bk").onclick=()=>{S={view:"menu"};render()};
+ const a=$("#ap");if(a)a.onclick=()=>{bad.forEach(r=>{if(r.c>0)DB.stock[r.k]=r.c;else delete DB.stock[r.k];log("INVENTAIRE",r.e,r.a,r.x,"")});save();S={view:"menu",toast:"Stock corrigé ("+bad.length+" ligne(s))"};render()};
+}
+render();
+if("serviceWorker" in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>
